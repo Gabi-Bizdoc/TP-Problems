@@ -1,4 +1,2 @@
 ﻿  SourceP9.c
-c:\users\gabi\documents\github\tp-problems\tp-ovidiu\sourcep9.c(59): warning C4013: '_getch' undefined; assuming extern returning int
-c:\users\gabi\documents\github\tp-problems\tp-ovidiu\sourcep9.c(187): warning C4715: 'GetPoz': not all control paths return a value
   TP-Ovidiu.vcxproj -> C:\Users\Gabi\Documents\GitHub\TP-Problems\TP-Ovidiu\Debug\TP-Ovidiu.exe

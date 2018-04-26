@@ -11,6 +11,11 @@ typedef struct point{
     unsigned int y;
 }point;
 
+typedef struct QueuePoints{
+    point nod; 
+    struct QueuePoints* parent; // here will be a trace of the parent of each node
+}QueuePoints;
+
 typedef struct Maze{
     unsigned int _high, _weight;
     unsigned int **Cost;
@@ -19,7 +24,7 @@ typedef struct Maze{
     unsigned int _size;
     unsigned int _curentPozQueue;
     point initial, final;
-    point *queue;
+    QueuePoints *queue;
 }Maze;
 
 // containers functions area
@@ -36,11 +41,13 @@ int step[] = {-1, 0, 1, 0, 0, -1, 0, 1};
 void ReadFromFile();
 void _inMaze_FillMap(uint **map, int value); // Fills a matrix from Maze with a specified value
 void buildCost(); // Fills every cell with the minim cost from begin to that cell
-void linkList();
-void DispPath();
-
+void linkList(); // This function will build a queue for nods
+void DispPath(); // Show/Write final path
+void Dispose();
+void Revers(QueuePoints*);
 // variales definitions area
 Maze maze;
+FILE *out;
 // main program area
 
 int main(){
@@ -49,14 +56,18 @@ int main(){
     _inMaze_FillMap(maze.Cost, INF);// Every cost in costmap become INF
     _inMaze_FillMap(maze.Checked, 0); // every checked square in Chekedmap become 0 (unchecked)
 
-    maze.queue = (point*) malloc(sizeof(point) * maze._size); // alloc memory for M*N points
+    maze.queue = (QueuePoints*) malloc(sizeof(QueuePoints) * maze._size); // alloc memory for list
 
     linkList(); // add all nodes in a linked list 
     buildCost(); // calculate the cost matrix;
 
-    DispPath();
+    ///DispPath();
 
-    _getch();
+    fopen_s(&out, outputFile, "wt");
+    fprintf_s(out, "%d\n", maze.Cost[maze.queue[maze._curentPozQueue].nod.y][maze.queue[maze._curentPozQueue].nod.y]);
+    Revers(&maze.queue[maze._curentPozQueue]);
+    fclose(out);
+    Dispose();
     return 0;
 }
 
@@ -67,8 +78,9 @@ void linkList(){
     {
         for(j = 0; j < maze._weight; j++)
         {
-            maze.queue[k].x = j;
-            maze.queue[k].y = i;
+            maze.queue[k].nod.x = j;
+            maze.queue[k].nod.y = i;
+            maze.queue[k].parent = (k == 0) ? &maze.queue[k] : &maze.queue[k-1];
             k++;
         }
     }
@@ -139,72 +151,98 @@ void _inMaze_FillMap(uint **map, int value){
 
 void buildCost(){
     int down, right, temp;
-    maze.Checked[maze.initial.x][maze.initial.y] = 0; // set the cost of the first node to 0
+    maze.Cost[maze.initial.x][maze.initial.y] = maze.Walls[maze.initial.x][maze.initial.y]; // set the cost of the first node to 0
 
     ChangePriority(maze.initial.y, maze.initial.x); // change priority of a nod in queue list
 
     while(maze._curentPozQueue != maze._size)
     {
+        if(maze.queue[maze._curentPozQueue].nod.x == maze.final.x && maze.queue[maze._curentPozQueue].nod.y == maze.final.y)
+            break;
         for(temp = 0; temp < 8;){
             down = step[temp++];
             right = step[temp++];
-            if(maze.queue[maze._curentPozQueue].y + down >= 0 && maze.queue[maze._curentPozQueue].y + down < maze._high)
-                if(maze.queue[maze._curentPozQueue].x + right >= 0 && maze.queue[maze._curentPozQueue].x + right < maze._weight)
-                    if(maze.Checked[maze.queue[maze._curentPozQueue].y + down][maze.queue[maze._curentPozQueue].x + right] == 0)
-                        if(maze.Cost[maze.queue[maze._curentPozQueue].y + down][maze.queue[maze._curentPozQueue].x + right] >(maze.Cost[maze.queue[maze._curentPozQueue].y][maze.queue[maze._curentPozQueue].x] + maze.Walls[maze.queue[maze._curentPozQueue].y + down][maze.queue[maze._curentPozQueue].x + right])){
-                            maze.Cost[maze.queue[maze._curentPozQueue].y + down][maze.queue[maze._curentPozQueue].x + right] = maze.Cost[maze.queue[maze._curentPozQueue].y][maze.queue[maze._curentPozQueue].x] + maze.Walls[maze.queue[maze._curentPozQueue].y + down][maze.queue[maze._curentPozQueue].x + right];
-                            ChangePriority(maze.queue[maze._curentPozQueue].y + down, maze.queue[maze._curentPozQueue].x + right);
+            if(maze.queue[maze._curentPozQueue].nod.y + down >= 0 && maze.queue[maze._curentPozQueue].nod.y + down < maze._high)
+                if(maze.queue[maze._curentPozQueue].nod.x + right >= 0 && maze.queue[maze._curentPozQueue].nod.x + right < maze._weight)
+                    if(maze.Checked[maze.queue[maze._curentPozQueue].nod.y + down][maze.queue[maze._curentPozQueue].nod.x + right] == 0)
+                        if(maze.Cost[maze.queue[maze._curentPozQueue].nod.y + down][maze.queue[maze._curentPozQueue].nod.x + right] >(maze.Cost[maze.queue[maze._curentPozQueue].nod.y][maze.queue[maze._curentPozQueue].nod.x] + maze.Walls[maze.queue[maze._curentPozQueue].nod.y + down][maze.queue[maze._curentPozQueue].nod.x + right]))
+                        {
+                            maze.Cost[maze.queue[maze._curentPozQueue].nod.y + down][maze.queue[maze._curentPozQueue].nod.x + right] = maze.Cost[maze.queue[maze._curentPozQueue].nod.y][maze.queue[maze._curentPozQueue].nod.x] + maze.Walls[maze.queue[maze._curentPozQueue].nod.y + down][maze.queue[maze._curentPozQueue].nod.x + right];                           
+                            ChangePriority(maze.queue[maze._curentPozQueue].nod.y + down, maze.queue[maze._curentPozQueue].nod.x + right);
                         }
         }
-        maze.Checked[maze.queue[maze._curentPozQueue].y][maze.queue[maze._curentPozQueue].x] = 1;
+        maze.Checked[maze.queue[maze._curentPozQueue].nod.y][maze.queue[maze._curentPozQueue].nod.x] = 1;
         maze._curentPozQueue++;
+
     }
 }
 
 void ChangePriority(int y, int x){
     int i = maze._curentPozQueue;
-    point aux;
-    while(maze.queue[i].x != x || maze.queue[i].y != y)
+    QueuePoints aux;
+    while(maze.queue[i].nod.x != x || maze.queue[i].nod.y != y)
     {
         i++;
     }
 
+    maze.queue[i].parent = &maze.queue[maze._curentPozQueue];
     aux = maze.queue[i];
 
-    while(i-- > 0 && (maze.Cost[maze.queue[i].y][maze.queue[i].x] > maze.Cost[aux.y][aux.x]))
+    while(i-- > 0 && (maze.Cost[maze.queue[i].nod.y][maze.queue[i].nod.x] > maze.Cost[aux.nod.y][aux.nod.x]))
     {
         maze.queue[i + 1] = maze.queue[i];
     }
-
     maze.queue[i + 1] = aux;
 }
 
-int GetPoz(int y, int x){
-    for(uint i = 0; i < maze._size; i++){
-        if(maze.queue[i].x == x && maze.queue[i].y == y)
-            return i;
+void Revers(QueuePoints *temp){
+    if(temp->nod.x != maze.initial.x || temp->nod.y != maze.initial.y){
+        Revers(temp->parent);
     }
+    fprintf_s(out, "(%d %d)", temp->nod.y, temp->nod.x);
 }
-
+/*
 void DispPath(){
-    uint k;
-    for(uint i = 0; i < maze._high; i++)
-    {
-        for(uint j = 0; j < maze._weight; j++)
-        {
-            printf_s("%d ", maze.Cost[i][j]);
-        }
-        printf_s("\n");
-    }
-    printf_s("\n"); printf_s("\n"); printf_s("\n");
-
+   // uint k;
+    QueuePoints* temp;
+    
+    //Here you can see the cost matrix
+    //for(uint i = 0; i < maze._high; i++)
+    //{
+    //    for(uint j = 0; j < maze._weight; j++)
+    //    {
+    //        printf_s("%d ", maze.Cost[i][j]);
+    //    }
+    //    printf_s("\n");
+    //}
+  ///  printf_s("\n"); printf_s("\n"); printf_s("\n");
     for(uint i = 0; i < maze._size; i++)
     {
-        printf_s("(%d %d)", maze.queue[i].y, maze.queue[i].x);
-        if(maze.queue[i].x == maze.final.x && maze.queue[i].y == maze.final.y){
+    ///    printf_s("(%d %d)", maze.queue[i].nod.y, maze.queue[i].nod.x);
+        if(maze.queue[i].nod.x == maze.final.x && maze.queue[i].nod.y == maze.final.y){
             k = i;
         }
     }
-    //printf_s("\n\n\n");
+   /// printf_s("\n\n\n");
 
+    temp = &maze.queue[maze._curentPozQueue];
+    fopen_s(&out, outputFile, "wt");
+   /* do
+    {
+        fprintf_s(out, "(%d %d)", temp->nod.y, temp->nod.x);
+        temp = temp->parent;
+    } while(temp->nod.x != maze.initial.x || temp->nod.y != maze.initial.y);
+    *
+    Revers(temp);
+    fclose(out);
+
+}*/
+
+// Aici nu mai stiu daca e bine ce am facut, Dar ce stiu e ca e inutil, memoria alocat se va imprastia la finalul executiei
+void Dispose(){
+    free(maze.queue);
+    free(maze.Checked[0]);
+    free(maze.Checked);
+    free(maze.Cost);
+    free(maze.Walls);
 }
